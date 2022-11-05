@@ -1,6 +1,7 @@
 import {
   combineLatest,
   concat,
+  EMPTY,
   forkJoin,
   from,
   interval,
@@ -42,26 +43,35 @@ const runUnit$ = (unitDurationMs: number) => {
   // );
 
   // this is better. less bloat
-  return of(true).pipe(
-    concatMap(() => measureProgressEverySec$(unitDurationMs))
-  );
+  return of(0).pipe(concatMap(() => measureProgressEverySec$(unitDurationMs)));
 };
 
-const sessionPomodoros = 3;
-const unitDurationMs = 4000;
+const unitDurationMs = 2000;
 
 const repeatWork$ = runUnit$(unitDurationMs);
 const repeatPause$ = runUnit$(unitDurationMs);
 
-const resetProgress$ = of(true).pipe(
-  tap(() => console.log('progress resetted'))
+const resetProgress$ = of(0).pipe(tap(() => console.log('progress resetted')));
+
+const singlePomodoroSession$ = concat(
+  repeatWork$,
+  repeatPause$,
+  resetProgress$
 );
 
-const pomodoroSession$ = concat(repeatWork$, repeatPause$, resetProgress$);
-// .pipe(
-//   repeat(sessionPomodoros)
-// );
+const sessionPomodoros = 3;
 
-pomodoroSession$.subscribe({
+const session$ = range(1, sessionPomodoros).pipe(
+  concatMap((current: number) =>
+    of(current).pipe(
+      tap((current: number) => {
+        console.log(`${current} of ${sessionPomodoros}`);
+      }),
+      concatMap(() => singlePomodoroSession$)
+    )
+  )
+);
+
+session$.subscribe({
   complete: () => console.log('pomodoro session done'),
 });
